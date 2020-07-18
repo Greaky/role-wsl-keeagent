@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-
+#!/usr/bin/env python
 """
 msysGit to Unix socket proxy
 ============================
@@ -46,6 +45,7 @@ import os
 import re
 import signal
 import socket
+import stat
 import sys
 
 
@@ -86,19 +86,20 @@ class UpstreamHandler(asyncore.dispatcher_with_send):
     This class handles the connection to the TCP socket listening on localhost that makes the
     msysGit socket.
     """
+
     def __init__(self, downstream_dispatcher, upstream_path):
         asyncore.dispatcher.__init__(self)
         self.out_buffer = b''
         self.downstream_dispatcher = downstream_dispatcher
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect(
-            (b'localhost', UpstreamHandler.load_tcp_port_from_msysgit_socket_file(upstream_path))
-        )
+        self.connect(('localhost',
+                      UpstreamHandler.load_tcp_port_from_msysgit_socket_file(
+                          upstream_path)))
 
     @staticmethod
     def load_tcp_port_from_msysgit_socket_file(path):
         with open(path, 'r') as f:
-            m = re.search(b'>([0-9]+)', f.readline())
+            m = re.search('>([0-9]+)', f.readline())
             return int(m.group(1))
 
     def handle_connect(self):
@@ -118,6 +119,7 @@ class DownstreamHandler(asyncore.dispatcher_with_send):
     """
     This class handles the connections that are being accepted on the Unix socket.
     """
+
     def __init__(self, downstream_socket, upstream_path):
         asyncore.dispatcher.__init__(self, downstream_socket)
         self.out_buffer = b''
@@ -137,6 +139,7 @@ class MSysGit2UnixSocketServer(asyncore.dispatcher):
     """
     This is the "server" listening for connections on the Unix socket.
     """
+
     def __init__(self, upstream_socket_path, unix_socket_path, mode):
         asyncore.dispatcher.__init__(self)
         self.upstream_socket_path = upstream_socket_path
@@ -159,61 +162,54 @@ def build_config():
             proxies = []
             for value in values:
                 src_dst = value.partition(':')
-                if src_dst[1] == b'':
-                    raise parser.error(b'Unable to parse sockets proxy pair "%s".' % value)
+                if src_dst[1] == '':
+                    raise parser.error(
+                        'Unable to parse sockets proxy pair "%s".' % value)
                 proxies.append([src_dst[0], src_dst[2]])
             setattr(namespace, self.dest, proxies)
 
     parser = argparse.ArgumentParser(
-        description='Transforms msysGit compatible sockets to Unix sockets for the ' +
-                    'Windows Linux Subsystem.'
-    )
+        description=
+        'Transforms msysGit compatible sockets to Unix sockets for the ' +
+        'Windows Linux Subsystem.')
     parser.add_argument(
-        b'--downstream-buffer-size',
+        '--downstream-buffer-size',
         default=8192,
         type=int,
-        metavar=b'N',
-        help=b'Maximum number of bytes to read at a time from the Unix socket.'
+        metavar='N',
+        help='Maximum number of bytes to read at a time from the Unix socket.'
     )
     parser.add_argument(
-        b'--upstream-buffer-size',
+        '--upstream-buffer-size',
         default=8192,
         type=int,
-        metavar=b'N',
-        help=b'Maximum number of bytes to read at a time from the msysGit socket.'
-    )
+        metavar='N',
+        help=
+        'Maximum number of bytes to read at a time from the msysGit socket.')
     parser.add_argument(
-        b'--listen-backlog',
+        '--listen-backlog',
         default=100,
         type=int,
-        metavar=b'N',
-        help=b'Maximum number of simultaneous connections to the Unix socket.'
-    )
+        metavar='N',
+        help='Maximum number of simultaneous connections to the Unix socket.')
     parser.add_argument(
-        b'--timeout',
-        default=60,
-        type=int,
-        help=b'Timeout.',
-        metavar=b'N'
-    )
+        '--timeout', default=60, type=int, help='Timeout.', metavar='N')
     parser.add_argument(
-        b'--pidfile',
+        '--pidfile',
         default='/tmp/msysgit2unix-socket.pid',
-        metavar=b'FILE',
-        help=b'Where to write the PID file.'
-    )
+        metavar='FILE',
+        help='Where to write the PID file.')
     parser.add_argument(
-        b'--mode',
-        default='0777',
-        help=b'File system permissions of the socket.'
-    )
+        '--mode',
+        default=0o0777,
+        type=int,
+        help='File system permissions of the socket.')
     parser.add_argument(
-        b'proxies',
-        nargs=b'+',
+        'proxies',
+        nargs='+',
         action=ProxyAction,
         metavar='source:destination',
-        help=b'A pair of a source msysGit and a destination Unix sockets.'
-    )
+        help='A pair of a source msysGit and a destination Unix sockets.')
     return parser.parse_args()
 
 
@@ -223,10 +219,10 @@ def daemonize():
         if pid > 0:
             sys.exit()
     except OSError:
-        sys.stderr.write(b'Fork #1 failed.')
+        sys.stderr.write('Fork #1 failed.')
         sys.exit(1)
 
-    os.chdir(b'/')
+    os.chdir('/')
     os.setsid()
     os.umask(0)
 
@@ -235,7 +231,7 @@ def daemonize():
         if pid > 0:
             sys.exit()
     except OSError:
-        sys.stderr.write(b'Fork #2 failed.')
+        sys.stderr.write('Fork #2 failed.')
         sys.exit(1)
 
     sys.stdout.flush()
@@ -250,7 +246,7 @@ def daemonize():
 
     pid = str(os.getpid())
     with open(config.pidfile, 'w+') as f:
-        f.write(b'%s\n' % pid)
+        f.write('%s\n' % pid)
 
 
 def cleanup():
@@ -261,10 +257,10 @@ def cleanup():
         if os.path.exists(config.pidfile):
             os.remove(config.pidfile)
     except Exception as e:
-        sys.stderr.write(b'%s' % (e))
+        sys.stderr.write('%s' % (e))
 
 
-if __name__ == b'__main__':
+if __name__ == '__main__':
     try:
         config = build_config()
 
@@ -273,17 +269,15 @@ if __name__ == b'__main__':
             f = open(config.pidfile, 'r')
             if PidExists(int(f.readline().strip())):
                 sys.stderr.write(
-                    b'%s: Already running (or at least pidfile "%s" already exists).\n' % (
-                        sys.argv[0], config.pidfile
-                    )
-                )
+                    '%s: Already running (or at least pidfile "%s" already exists).\n'
+                    % (sys.argv[0], config.pidfile))
                 sys.exit(1)
             else:
                 cleanup()
 
-        mode = int(config.mode, base=8)
+        # mode = int(config.mode, base=8)
         for pair in config.proxies:
-            MSysGit2UnixSocketServer(pair[0], pair[1], mode)
+            MSysGit2UnixSocketServer(pair[0], pair[1], config.mode)
 
         daemonize()
 
