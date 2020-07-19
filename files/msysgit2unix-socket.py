@@ -177,8 +177,7 @@ def build_config():
         default=8192,
         type=int,
         metavar='N',
-        help='Maximum number of bytes to read at a time from the Unix socket.'
-    )
+        help='Maximum number of bytes to read at a time from the Unix socket.')
     parser.add_argument(
         '--upstream-buffer-size',
         default=8192,
@@ -275,7 +274,6 @@ if __name__ == '__main__':
             else:
                 cleanup()
 
-        # mode = int(config.mode, base=8)
         for pair in config.proxies:
             MSysGit2UnixSocketServer(pair[0], pair[1], config.mode)
 
