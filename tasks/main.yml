@@ -12,7 +12,7 @@
 - name: "Check variables"
   assert:
     that:
-     - wsl_keeagent_msysgit_socket != ''
+     - wsl_keeagent_msysgit_socket | length > 0
     msg: "The variable wsl_keeagent_msysgit_socket must be set to an existing file"
   tags: wsl-keeagent
 
@@ -59,10 +59,12 @@
 # Fixing a problem with wsl-keeagent service startup
 - block:
 
-   - service: name=wsl-keeagent state=stopped
-     changed_when: false
+  - name: "Stop and disable service"
+    service: name=wsl-keeagent state=stopped
+    changed_when: false
 
-   - service: name=wsl-keeagent state=started
-     changed_when: false
+  - name: "Stop and disable service"
+    service: name=wsl-keeagent state=started
+    changed_when: false
 
   when: wsl_keeagent_enabled | default(True) | bool
